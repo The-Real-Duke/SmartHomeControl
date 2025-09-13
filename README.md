@@ -8,7 +8,7 @@ Control your Yandex Smart Home devices directly from the Windows system tray.
 - Quick on/off switching from the tray menu  
 
 ## 📥 Installation
-1. Download the [latest release](https://github.com/username/SHC/releases).  
+1. Download the [latest release](https://github.com/The-Real-Duke/SmartHomeControl/releases).  
 2. Extract and run `SHC.exe`.  
 3. On the first launch, Playwright will automatically download Chromium.  
 4. Log into Yandex Smart Home.  
