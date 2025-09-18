@@ -6,3 +6,7 @@ __pycache__/
 build/
 dist/
 *.spec
+/ms-playwright/
+/src/config.ini
+/src/debug.log
+/src/storage.json
