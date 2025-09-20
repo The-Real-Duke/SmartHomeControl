@@ -1,4 +1,4 @@
-# SHC (SmartHomeControl)
+# <img src="assets/icon.png" alt="App Icon" width="24" style="vertical-align: middle;"> SHC (SmartHomeControl)
 Control your Yandex Smart Home devices directly from the Windows system tray.
 
 ## ✨ Features
