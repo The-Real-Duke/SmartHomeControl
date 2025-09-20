@@ -484,7 +484,7 @@ def build_shc_tray_icon():
                 )
             ),
         pystray.MenuItem(
-            "Settings", lambda icon, item: threading.Thread(target=settings_window, daemon=True).start()
+            "Settings", settings_window
         ),
         pystray.MenuItem(
             "Refresh Page", lambda icon, item: asyncio.run_coroutine_threadsafe(refresh_page(),loop)
