@@ -14,10 +14,9 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 from playwright.__main__ import main as playwright_main
 from config import ConfigManager
-
+from devices import DeviceManager
 
 # Global Variables
-
 APPDATA_DIR = Path(os.getenv("APPDATA")) / "SHC"
 config = ConfigManager(APPDATA_DIR / "config.ini")
 cookies_path = APPDATA_DIR / "storage.json"
@@ -25,21 +24,20 @@ chromium_ready = asyncio.Event()
 device_counting_ready = asyncio.Event()
 loop = asyncio.new_event_loop()
 base_path = Path(os.path.abspath(".."))
-activatable_devices_list = []
-activatable_devices_cards = None
+shc_image = base_path / "assets" / "icon.png"
 default_device = None
 executable_path = None
 inst = None
 browser = None
 context = None
 page = None
+dm = DeviceManager(page)
 shc_tray_icon = None
 shc_tray_menu = None
 pressed_key_list = []
 current_hotkey = ""
 is_hotkey_exist = False
 hotkey_window = None
-shc_image = base_path / "assets" / "icon.png"
 
 
 # Logs
@@ -111,7 +109,7 @@ async def first_authorize():
 
 # Authorize with cookies
 async def cookies_authorize():
-    global executable_path, inst, browser, context, page
+    global executable_path, inst, browser, context, page, dm
     logging.info("Cookies already existing")
     logging.info("Starting Playwright...")
     inst = await async_playwright().start()
@@ -123,83 +121,35 @@ async def cookies_authorize():
     page = await context.new_page()
     logging.info("Opening yaiot...") #yaidiot
     await page.goto("https://yandex.ru/iot", wait_until="domcontentloaded")
-    await device_counting()
-
-
-# Counting devices
-async def device_counting():
-    global executable_path, inst, browser, context, page, activatable_devices_cards, tray_icon, shc_tray_icon
-    logging.info("Counting activatable devices")
-    # If waterfall-grid__column on the page - then medium size, if it isn't then small size. At least its working now.
-    if await page.locator("xpath=//div[@class='waterfall-grid__column']").count():
-        #  Finding visible cards which have text
-        devices_cards = await page.locator("//div[contains(@class, 'card-item-small')]").filter(has=page.locator(
-            "xpath=//div[@class='typography typography_align_center typography_color_primary typography_multi-line-clamp card-item-device-medium__text typography_header-16-m' and normalize-space(text()) != '']"
-        )).filter(visible=True).all()
-    else:
-        devices_cards = await page.locator("//div[contains(@class, 'card-item-small')]").filter(has=page.locator(
-            "xpath=//div[@class='typography typography_align_inherit typography_color_primary typography_single-line-clamp card-item-device-small__text typography_text-13-m' and normalize-space(text()) != '']"
-        )).filter(visible=True).all()
-    logging.info(f"All devices:{len(devices_cards)}")
-    # Finding visible cards which have switch
-    activatable_devices_cards = await page.locator("//div[contains(@class, 'card-item-small')]").filter(has=page.locator(
-            "xpath=//div[@class='typography typography_align_inherit typography_color_primary typography_single-line-clamp card-item-device-small__text typography_text-13-m' and normalize-space(text()) != '']"
-        )).filter(has=page.locator("xpath=//div[contains(@aria-label,'ключить')]")).filter(visible=True).all()
-    # Printing activatable devices
-    shc_tray_icon.notify(f"Activatable devices:{len(activatable_devices_cards)}", title="SmartHomeControl")
-    logging.info(f"Activatable devices:{len(activatable_devices_cards)}")
-    # Splitting cards on names, locations and states
-    for activatable_devices_card in activatable_devices_cards:
-        activatable_device_info = (await activatable_devices_card.inner_text()).splitlines()
-        activatable_device_name = activatable_device_info[0]
-        activatable_device_place = activatable_device_info[1] if len(activatable_device_info) > 1 else ""
-        activatable_device_button = activatable_devices_card.locator("xpath=//div[contains(@aria-label, 'ключить')]")
-        activatable_device_button_state = await activatable_device_button.get_attribute('aria-label')
-        activatable_device_state = False if activatable_device_button_state == 'Включить' else True
-        activatable_devices_list.append({
-            "name":activatable_device_name,
-            "location":activatable_device_place,
-            "state":activatable_device_state
-        })
+    dm = DeviceManager(page)
+    await dm.d_count()
     device_counting_ready.set()
 
 
 # Activating device
 async def activating_device(needed_device_name):
-    global activatable_devices_cards, shc_tray_icon
-    logging.info(f"Activating device: {needed_device_name}")
-    if needed_device_name:
-        for activatable_devices_card in activatable_devices_cards:
-            if needed_device_name in await activatable_devices_card.inner_text():
-                needed_device_button = activatable_devices_card.locator("xpath=//div[contains(@aria-label, 'ключить')]")
-                logging.info("The device was found. Gonna click")
-                await needed_device_button.click()
-                for d in activatable_devices_list:
-                    if d['name'] == needed_device_name:
-                        logging.info(f"{needed_device_name} was {d['state']}")
-                        d["state"] = not d["state"]
-                        logging.info(f"{needed_device_name} {d['state']} now")
-                        if d['state']:
-                            shc_tray_icon.notify(f"{needed_device_name} is turning on", title="SmartHomeControl")
-                        else:
-                            shc_tray_icon.notify(f"{needed_device_name} is turning off", title="SmartHomeControl")
-                        break
-                logging.info("Was clicked")
-                break
-            else:
-                logging.info(f"The device {needed_device_name} was not found.")
+    global dm
+    try:
+        logging.info(f"{needed_device_name} was {dm.devices[needed_device_name].state}")
+        await dm.toggle(needed_device_name)
+        logging.info(f"{needed_device_name} {dm.devices[needed_device_name].state} now")
+        if dm.devices[needed_device_name].state:
+            shc_tray_icon.notify(f"{needed_device_name} is turning on", title="SmartHomeControl")
+        else:
+            shc_tray_icon.notify(f"{needed_device_name} is turning off", title="SmartHomeControl")
+    except Exception as e:
+        logging.info(f"Click was failed. Error: {e}")
 
 
 # Refreshing page
 async def refresh_page(icon=None, item=None):
-    global executable_path, inst, browser, context, page, activatable_devices_list, shc_tray_icon
+    global page, shc_tray_icon, dm
     try:
         logging.info("Refreshing the page")
         await page.reload(wait_until="load")
         logging.info("Page is refreshed")
         shc_tray_icon.notify(f"Page is refreshed", title="SmartHomeControl")
-        activatable_devices_list = []
-        await device_counting()
+        await dm.d_count()
         update_shc_icon()
     except Exception as e:
         logging.info("Can't refresh the page")
@@ -435,9 +385,9 @@ def is_default_device(item):
 # Device checking
 def is_device_on(item):
     time.sleep(0.05)
-    for d in activatable_devices_list:
-        if d["name"] == item.text:
-            return d["state"]
+    for device in dm.devices.values():
+        if device.name == item.text:
+            return device.state
 
 
 #Bulid for tray
@@ -450,15 +400,15 @@ def build_shc_tray_icon():
         pystray.MenuItem(
             "Activatable devices", pystray.Menu(
                 lambda: (
-                    pystray.MenuItem(d["name"], shc_tray_was_clicked, checked=lambda item: is_device_on(item))
-                    for d in activatable_devices_list)
+                    pystray.MenuItem(d.name, shc_tray_was_clicked, checked=lambda item: is_device_on(item))
+                    for d in dm.devices.values())
             )
         ),
         pystray.MenuItem(
             "Select default device", pystray.Menu(
                 lambda : (
-                    pystray.MenuItem(d["name"], set_default_device, checked=lambda item: is_default_device(item))
-                                     for d in activatable_devices_list)
+                    pystray.MenuItem(d.name, set_default_device, checked=lambda item: is_default_device(item))
+                                     for d in dm.devices.values())
                 )
             ),
         pystray.MenuItem(
@@ -477,15 +427,13 @@ def build_shc_tray_icon():
 #Updating tray (for some reason works with big latency)
 def update_shc_icon():
     shc_tray_icon.menu=build_shc_tray_icon()
-    shc_tray_icon.visible = False
     shc_tray_icon.update_menu()
-    shc_tray_icon.visible = True
     shc_tray_icon.notify("Tray rebuilt", title="SmartHomeControl")
 
 
 # Build and start tray
 def start_shc_icon():
-    global shc_tray_icon, shc_tray_menu, activatable_devices_list
+    global shc_tray_icon, shc_tray_menu
     shc_tray_icon = pystray.Icon("SmartHomeControl", icon=Image.open(shc_image), title="SmartHomeControl", menu=build_shc_tray_icon())
     logging.info("Starting tray")
     shc_tray_icon.run()
