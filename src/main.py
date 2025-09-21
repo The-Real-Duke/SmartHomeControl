@@ -9,18 +9,18 @@ import tkinter
 import tkinter.messagebox
 import keyboard
 import threading
-import configparser
 from PIL import Image
 from pathlib import Path
 from playwright.async_api import async_playwright
 from playwright.__main__ import main as playwright_main
+from config import ConfigManager
 
 
 # Global Variables
-cookies_file = "storage.json"
-CONFIG_FILE = 'config.ini'
-config = None
-config_data = None
+
+APPDATA_DIR = Path(os.getenv("APPDATA")) / "SHC"
+config = ConfigManager(APPDATA_DIR / "config.ini")
+cookies_path = APPDATA_DIR / "storage.json"
 chromium_ready = asyncio.Event()
 device_counting_ready = asyncio.Event()
 loop = asyncio.new_event_loop()
@@ -46,40 +46,19 @@ shc_image = base_path / "assets" / "icon.png"
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.FileHandler('debug.log'), logging.StreamHandler()]
+    handlers=[logging.FileHandler(APPDATA_DIR / 'debug.log'), logging.StreamHandler()]
 )
-
-
-# Config functions
-def create_default_config():
-    cfg = configparser.ConfigParser()
-    cfg['CONFIG'] = {"default_device" : "", "default_device_hotkey" : ""}
-    with open(CONFIG_FILE, 'w') as f:
-        cfg.write(f)
-def get_config():
-    global config, config_data, default_device, current_hotkey
-    if not os.path.exists(CONFIG_FILE):
-        create_default_config()
-    config_data = configparser.ConfigParser()
-    config_data.read(CONFIG_FILE)
-    config = config_data['CONFIG']
-    default_device = config["default_device"]
-    current_hotkey = config["default_device_hotkey"]
-def save_config():
-    global config, config_data, CONFIG_FILE
-    with open(CONFIG_FILE, 'w') as f:
-        config_data.write(f)
 
 
 # Checking Chromium
 async def check_browser():
     global executable_path, shc_tray_icon
     logging.info("Searching chromium...")
-    chromium_dirs = list((base_path / "ms-playwright").glob("chromium-*"))
+    chromium_dirs = list((APPDATA_DIR / "ms-playwright").glob("chromium-*"))
     if not chromium_dirs:
         shc_tray_icon.notify("Chromium doesn't found. Starting download chromium...", title="SmartHomeControl")
         logging.info("Chromium doesn't found. Starting download chromium... Please Wait.")
-        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(base_path / "ms-playwright")
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(APPDATA_DIR / "ms-playwright")
         old_argv = sys.argv
         sys.argv = ["playwright", "install", "chromium", "--no-shell"]
         try:
@@ -101,7 +80,7 @@ async def check_browser():
 # Checking cookies
 async def init_browser():
     logging.info("Chromium initialization...")
-    if not os.path.exists(cookies_file):
+    if not os.path.exists(cookies_path):
         await first_authorize()
     else:
         await cookies_authorize()
@@ -124,7 +103,7 @@ async def first_authorize():
         logging.error("Timeout authorization")
         await browser.close()
         os._exit(1)
-    await page.context.storage_state(path=cookies_file)
+    await page.context.storage_state(path=cookies_path)
     logging.info("Cookie saved")
     await browser.close()
     await init_browser()
@@ -139,7 +118,7 @@ async def cookies_authorize():
     logging.info("Starting Chromium...")
     browser = await inst.chromium.launch(headless=True,executable_path=executable_path)
     logging.info("Adding cookies...")
-    context = await browser.new_context(storage_state=cookies_file)
+    context = await browser.new_context(storage_state=cookies_path)
     logging.info("Opening new page...")
     page = await context.new_page()
     logging.info("Opening yaiot...") #yaidiot
@@ -231,6 +210,7 @@ async def exit_program(icon=None, item=None):
     global shc_tray_icon
     global executable_path, inst, browser, context, page
     logging.info("Closing tray icon...")
+    shc_tray_icon.notify(f"Change the world. My final message. Good bye.", title="SmartHomeControl")
     shc_tray_icon.visible = False
     shc_tray_icon.stop()
     logging.info("Shutting the browser...")
@@ -238,19 +218,17 @@ async def exit_program(icon=None, item=None):
     await browser.close()
     await inst.stop()
     logging.info("Browser was closed")
-    shc_tray_icon.notify(f"Change the world. My final message. Good bye.", title="SmartHomeControl")
-    loop.stop()
+    await loop.stop()
 
 
 # Hotkey functions
 def make_hotkey(current_hotkey):
-    global config
     keyboard.add_hotkey(
         current_hotkey,
         lambda: activate_hotkey()
     )
-    config["default_device_hotkey"] = current_hotkey
-    save_config()
+    config.set("CONFIG","dd_hotkey", str(current_hotkey))
+    config.save()
     logging.info("Hotkey was maked")
 def remove_hotkey(current_hotkey):
     keyboard.remove_hotkey(current_hotkey)
@@ -445,10 +423,10 @@ def shc_tray_was_clicked(icon, item):
 
 # Default device functions
 def set_default_device(icon, item):
-    global default_device, config
+    global default_device
     default_device = item.text
-    config["default_device"] = default_device
-    save_config()
+    config.set("CONFIG", "default_device", str(default_device))
+    config.save()
 def is_default_device(item):
     global default_device
     return item.text == default_device
@@ -521,7 +499,6 @@ async def background_updater():
 
 # Main
 async def main():
-    get_config()
     logging.info("Starting tray initialization...")
     threading.Thread(target=start_shc_icon, daemon=True).start()
     await asyncio.sleep(0.1)
