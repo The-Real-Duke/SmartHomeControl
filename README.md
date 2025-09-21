@@ -1,5 +1,5 @@
 # <img src="assets/icon.png" alt="App Icon" width="24" style="vertical-align: middle;"> SHC (SmartHomeControl)
-Control your Yandex Smart Home devices directly from the Windows system tray.
+&nbsp; Control your Yandex Smart Home devices directly from the Windows system tray.
 
 ## ✨ Features
 - Minimal tray interface  
@@ -15,18 +15,18 @@ Control your Yandex Smart Home devices directly from the Windows system tray.
 5. Enjoy! 🎉
 
 ## 🔧 Requirements
-Windows 10/11
+&nbsp; &nbsp; Windows 10/11
 
 ## 🙏 Acknowledgements
-This project uses:  
+&nbsp; &nbsp; This project uses:  
 - [Playwright](https://playwright.dev/)  
 - [pystray](https://github.com/moses-palmer/pystray)  
 - [Pillow](https://python-pillow.org/)  
 - [keyboard](https://github.com/boppreh/keyboard)  
 
 ## 📜 License
-This project is licensed under the [CC BY-NC-SA 4.0](LICENSE).  
-For commercial use, please contact: andrey.shash.dik@gmail.com  
+- This project is licensed under the [CC BY-NC-SA 4.0](LICENSE).  
+- For commercial use, please contact: andrey.shash.dik@gmail.com  
 
 ## ⚠️ Notice
 - This project is **not affiliated with or endorsed by Yandex**.  
