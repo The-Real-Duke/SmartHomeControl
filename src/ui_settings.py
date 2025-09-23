@@ -161,7 +161,7 @@ class SettingsWindowManager:
         self.config.set("CONFIG", "dd_hotkey", str(self.current_hotkey))
         self.config.save()
         self.recorded_keys.config(text=f"Pressed keys:")
-        self.current_hotkey_label.config(text=f"Current hotkey: {self.current_hotkey if self.current_hotkey else "None"}")
+        self.current_hotkey_label.config(text=f"Current hotkey: {self.current_hotkey if self.current_hotkey else ""}")
 
     def _apply_keys(self):
         if not self.pressed_key_list:
@@ -182,7 +182,7 @@ class SettingsWindowManager:
     def _about():
         tkinter.messagebox.showinfo(
             title="SmartHomeControl",
-            message="SmartHomeControl aka SHC v1.0\nAuthor: The-Real-Duke\nLicense: CC BY-NC-SA 4.0\nSource: github.com/The-Real-Duke/SmartHomeControl"
+            message="SmartHomeControl v1.1.0\nAuthor: The-Real-Duke\nLicense: CC BY-NC-SA 4.0\nSource: github.com/The-Real-Duke/SmartHomeControl"
         )
 
     @staticmethod

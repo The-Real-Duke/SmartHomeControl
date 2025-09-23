@@ -10,18 +10,21 @@ from PIL import Image
 from pathlib import Path
 from playwright.async_api import async_playwright
 from playwright.__main__ import main as playwright_main
-from config import ConfigManager
-from devices import DeviceManager
-from ui_settings import SettingsWindowManager
+from src.config import ConfigManager
+from src.devices import DeviceManager
+from src.ui_settings import SettingsWindowManager
 
 # Global Variables
+if hasattr(sys, "_MEIPASS"):
+    base_path = Path(sys._MEIPASS)
+else:
+    base_path = Path(os.path.abspath(".."))
 APPDATA_DIR = Path(os.getenv("APPDATA")) / "SHC"
 config = ConfigManager(APPDATA_DIR / "config.ini")
 cookies_path = APPDATA_DIR / "storage.json"
 chromium_ready = asyncio.Event()
 device_counting_ready = asyncio.Event()
 loop = asyncio.new_event_loop()
-base_path = Path(os.path.abspath(".."))
 shc_image = base_path / "assets" / "icon.png"
 default_device = config.get_info("CONFIG","default_device")
 executable_path = None
