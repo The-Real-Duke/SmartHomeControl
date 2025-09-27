@@ -4,19 +4,21 @@ import tkinter.messagebox
 import tkinter.ttk
 import keyboard
 
+
 class SettingsWindowManager:
     # To avoid different keyboards layouts... I cant design better thing than that. Sorry azerty, qwertz etc. o7
     scancodes = {
-    1: 'esc', 2: '1', 3: '2', 4: '3', 5: '4', 6: '5', 7: '6', 8: '7', 9: '8',
-    10: '9', 11: '0', 12: '-', 13: '=', 14: 'backspace', 15: 'tab', 16: 'q',
-    17: 'w', 18: 'e', 19: 'r', 20: 't', 21: 'y', 22: 'u', 23: 'i', 24: 'o',
-    25: 'p', 26: '[', 27: ']', 43: '\\', 58: 'caps lock', 30: 'A', 31: 's',
-    32: 'd', 33: 'f', 34: 'g', 35: 'h', 36: 'j', 37: 'k', 38: 'l', 39: ';',
-    40: "'", 28: 'enter', 42: 'shift', 44: 'z', 45: 'x', 46: 'c', 47: 'v',
-    48: 'b', 49: 'n', 50: 'm', 51: ',', 52: '.', 53: '/', 54: 'right shift',
-    29: 'ctrl', 91: 'left windows', 56: 'alt', 57: 'space', 93: 'menu', 41: '`',
-    55: 'print screen', 71: 'home', 79: 'end', 73: 'page up', 81: 'page down',
-    82: 'insert', 83: 'delete'}
+        1: 'esc', 2: '1', 3: '2', 4: '3', 5: '4', 6: '5', 7: '6', 8: '7', 9: '8',
+        10: '9', 11: '0', 12: '-', 13: '=', 14: 'backspace', 15: 'tab', 16: 'q',
+        17: 'w', 18: 'e', 19: 'r', 20: 't', 21: 'y', 22: 'u', 23: 'i', 24: 'o',
+        25: 'p', 26: '[', 27: ']', 43: '\\', 58: 'caps lock', 30: 'A', 31: 's',
+        32: 'd', 33: 'f', 34: 'g', 35: 'h', 36: 'j', 37: 'k', 38: 'l', 39: ';',
+        40: "'", 28: 'enter', 42: 'shift', 44: 'z', 45: 'x', 46: 'c', 47: 'v',
+        48: 'b', 49: 'n', 50: 'm', 51: ',', 52: '.', 53: '/', 54: 'right shift',
+        29: 'ctrl', 91: 'left windows', 56: 'alt', 57: 'space', 93: 'menu', 41: '`',
+        55: 'print screen', 71: 'home', 79: 'end', 73: 'page up', 81: 'page down',
+        82: 'insert', 83: 'delete'}
+
     def __init__(self, image, config, on_hotkey_callback):
         self.image = image
         self.window = None
@@ -26,6 +28,7 @@ class SettingsWindowManager:
             self._make_hotkey()
         self.on_hotkey_callback = on_hotkey_callback
         self.pressed_key_list = []
+
     def open(self):
         if not self.window:
             self.window = tkinter.Tk()
@@ -38,7 +41,7 @@ class SettingsWindowManager:
                 height=False
             )
             self.settings_notebook = tkinter.ttk.Notebook(self.window, style="TNotebook")
-            self.settings_notebook.pack(expand=True,fill="both", padx=2, pady=2)
+            self.settings_notebook.pack(expand=True, fill="both", padx=2, pady=2)
             self.is_refreshing = tkinter.BooleanVar(value=self.config.get_info("CONFIG", "is_refreshing"))
             self.is_notify = tkinter.BooleanVar(value=self.config.get_info("CONFIG", "is_notify"))
             # Tab 1
@@ -138,7 +141,7 @@ class SettingsWindowManager:
                 variable=self.is_refreshing,
                 command=self._checkbox_save
             )
-            self.refreshing_checkbox.pack(pady=5,padx=5,anchor="w")
+            self.refreshing_checkbox.pack(pady=5, padx=5, anchor="w")
 
             self.notify_checkbox = tkinter.ttk.Checkbutton(
                 self.other_tab,
@@ -154,13 +157,16 @@ class SettingsWindowManager:
             self.window.deiconify()
             self.window.lift()
             self.window.focus_force()
+
     def _checkbox_save(self):
         self.config.set("CONFIG", "is_refreshing", f"{self.is_refreshing.get()}")
         self.config.set("CONFIG", "is_notify", f"{self.is_notify.get()}")
         self.config.save()
+
     def _on_close(self):
         self.window.destroy()
         self.window = None
+
     def _make_hotkey(self):
         keyboard.add_hotkey(
             self.current_hotkey,
@@ -190,6 +196,7 @@ class SettingsWindowManager:
                     self.hotkey_entry.config(state='readonly')
         else:
             self._stop_record()
+
     def _stop_record(self):
         keyboard.unhook(self._pressed_keys)
         self.toggle_record_button.config(text="Start record", command=lambda: self._start_record())
@@ -222,12 +229,14 @@ class SettingsWindowManager:
     @staticmethod
     def _remove_hotkey(keys):
         keyboard.remove_hotkey(keys)
+
     @staticmethod
     def _about():
         tkinter.messagebox.showinfo(
             title="SmartHomeControl",
             message="SmartHomeControl v1.1.0\nAuthor: The-Real-Duke\nLicense: CC BY-NC-SA 4.0\nSource: github.com/The-Real-Duke/SmartHomeControl"
         )
+
     @staticmethod
     def clear_keys():
         while True:

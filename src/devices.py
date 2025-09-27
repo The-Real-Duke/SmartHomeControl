@@ -1,7 +1,8 @@
 from playwright.async_api import Page
 
+
 class DeviceManager:
-    def __init__(self, page : Page):
+    def __init__(self, page: Page):
         self.page = page
         self.devices = {}
         self._name_counter = {}
@@ -36,14 +37,18 @@ class DeviceManager:
             activatable_device_button_state = await activatable_device_button.get_attribute('aria-label')
             activatable_device_state = False if activatable_device_button_state == 'Включить' else True
             if activatable_device_name in self.devices:
-                self._name_counter[activatable_device_name] +=1
+                self._name_counter[activatable_device_name] += 1
                 activatable_device_name = activatable_device_name + f" ({str(self._name_counter[activatable_device_name])})"
             else:
                 self._name_counter[activatable_device_name] = 1
-            self.devices[activatable_device_name] = (Device(activatable_device_name,activatable_device_state,activatable_device_place,activatable_device_button))
-    async def toggle(self,name):
+            self.devices[activatable_device_name] = (
+                Device(activatable_device_name, activatable_device_state, activatable_device_place,
+                       activatable_device_button))
+
+    async def toggle(self, name):
         await self.devices[name].button.click()
         self.devices[name].state = not self.devices[name].state
+
 
 class Device:
     def __init__(self, name, state, location, button):
@@ -51,5 +56,6 @@ class Device:
         self.state = state
         self.location = location
         self.button = button
+
     def __repr__(self):
         return f"Device name = {self.name}, state = {self.state}, location = {self.location}, button = {self.button}"

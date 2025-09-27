@@ -1,6 +1,7 @@
 import configparser
 from pathlib import Path
 
+
 class ConfigManager:
     def __init__(self, path="config.ini"):
         self.path = Path(path)
@@ -10,10 +11,10 @@ class ConfigManager:
         else:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self.data["CONFIG"] = {
-                "default_device":"",
-                "dd_hotkey":"",
-                "is_refreshing":"True",
-                "is_notify":"True"
+                "default_device": "",
+                "dd_hotkey": "",
+                "is_refreshing": "True",
+                "is_notify": "True"
             }
             self.save()
 

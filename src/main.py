@@ -26,7 +26,7 @@ chromium_ready = asyncio.Event()
 device_counting_ready = asyncio.Event()
 loop = asyncio.new_event_loop()
 shc_image = base_path / "assets" / "icon.png"
-default_device = config.get_info("CONFIG","default_device")
+default_device = config.get_info("CONFIG", "default_device")
 executable_path = None
 inst = None
 browser = None
@@ -40,7 +40,6 @@ current_hotkey = ""
 is_hotkey_exist = False
 hotkey_window = None
 
-
 # Logs
 logging.basicConfig(
     level=logging.INFO,
@@ -52,7 +51,6 @@ logging.basicConfig(
 # Checking Chromium
 async def check_browser():
     global executable_path, shc_tray_icon
-    logging.info("Searching chromium...")
     chromium_dirs = list((APPDATA_DIR / "ms-playwright").glob("chromium-*"))
     if not chromium_dirs:
         make_notify("Chromium doesn't found. Starting download chromium...", title="SmartHomeControl")
@@ -90,7 +88,7 @@ async def first_authorize():
     global executable_path, inst, browser, page, shc_tray_icon
     inst = await async_playwright().start()
     logging.info("Trying to launch Chromium...")
-    browser = await inst.chromium.launch(headless=False,executable_path=executable_path)
+    browser = await inst.chromium.launch(headless=False, executable_path=executable_path)
     page = await browser.new_page()
     logging.info("First authorization. Opening login page...")
     make_notify("Cookies was not found. First authorization. Opening login page...", title="SmartHomeControl")
@@ -112,15 +110,12 @@ async def first_authorize():
 async def cookies_authorize():
     global executable_path, inst, browser, context, page, dm
     logging.info("Cookies already existing")
-    logging.info("Starting Playwright...")
     inst = await async_playwright().start()
     logging.info("Starting Chromium...")
-    browser = await inst.chromium.launch(headless=True,executable_path=executable_path)
-    logging.info("Adding cookies...")
+    browser = await inst.chromium.launch(headless=True, executable_path=executable_path)
     context = await browser.new_context(storage_state=cookies_path)
-    logging.info("Opening new page...")
     page = await context.new_page()
-    logging.info("Opening yaiot...") #yaidiot
+    logging.info("Opening yaiot...")  # yaidiot
     await page.goto("https://yandex.ru/iot", wait_until="domcontentloaded")
     dm = DeviceManager(page)
     await dm.d_count()
@@ -178,15 +173,21 @@ def set_default_device(icon, item):
     default_device = item.text
     config.set("CONFIG", "default_device", str(default_device))
     config.save()
+
+
 def is_default_device(item):
     global default_device
     return item.text == default_device
+
+
 # Device checking
 def is_device_on(item):
     time.sleep(0.05)
     for device in dm.devices.values():
         if device.name == item.text:
             return device.state
+
+
 # Activating default device
 def activating_dd():
     if default_device != "":
@@ -195,11 +196,14 @@ def activating_dd():
         make_notify("There is no default device. Set one.")
 
 
-#Bulid for tray
+settings_window = SettingsWindowManager(shc_image, config, activating_dd)
+
+
+# Build for tray
 def build_shc_tray_icon():
     return pystray.Menu(
         pystray.MenuItem(
-            "Exit", lambda icon, item: asyncio.run_coroutine_threadsafe(exit_program(),loop)
+            "Exit", lambda icon, item: asyncio.run_coroutine_threadsafe(exit_program(), loop)
         ),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem(
@@ -211,44 +215,54 @@ def build_shc_tray_icon():
         ),
         pystray.MenuItem(
             "Select default device", pystray.Menu(
-                lambda : (
+                lambda: (
                     pystray.MenuItem(d.name, set_default_device, checked=lambda item: is_default_device(item))
-                                     for d in dm.devices.values())
-                )
-            ),
+                    for d in dm.devices.values())
+            )
+        ),
         pystray.MenuItem(
             "Settings", lambda icon, item: settings_window.open()
         ),
         pystray.MenuItem(
-            "Refresh Page", lambda icon, item: asyncio.run_coroutine_threadsafe(refresh_page(),loop)
+            "Refresh Page", lambda icon, item: asyncio.run_coroutine_threadsafe(refresh_page(), loop)
         ),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem(
             "Activate default device", shc_tray_was_clicked
         )
     )
-#Updating tray
+
+
+# Updating tray
 def update_shc_icon():
-    shc_tray_icon.menu=build_shc_tray_icon()
+    shc_tray_icon.menu = build_shc_tray_icon()
     shc_tray_icon.update_menu()
     make_notify("Tray rebuilt", title="SmartHomeControl")
+
+
 # Making notify if turned on
-def make_notify(text,title="SmartHomeControl"):
+def make_notify(text, title="SmartHomeControl"):
     if config.get_info("CONFIG", "is_notify") == "True":
         shc_tray_icon.notify(text, title=title)
+
+
 # Build and start tray
 def start_shc_icon():
     global shc_tray_icon, shc_tray_menu
-    shc_tray_icon = pystray.Icon("SmartHomeControl", icon=Image.open(shc_image), title="SmartHomeControl", menu=build_shc_tray_icon())
+    shc_tray_icon = pystray.Icon("SmartHomeControl", icon=Image.open(shc_image), title="SmartHomeControl",
+                                 menu=build_shc_tray_icon())
     logging.info("Starting tray")
     shc_tray_icon.run()
-#Click trigger
+
+
+# Click trigger
 def shc_tray_was_clicked(icon, item):
     logging.info(f"Was clicked on tray: {item}")
     if item.text == "Activate default device":
         asyncio.run_coroutine_threadsafe(activating_device(default_device), loop)
     else:
         asyncio.run_coroutine_threadsafe(activating_device(item.text), loop)
+
 
 # Background updater each 15 min + random seconds for antibot system if it turned on
 async def background_updater():
@@ -257,16 +271,14 @@ async def background_updater():
         if config.get_info("CONFIG", "is_refreshing") == "True":
             await refresh_page()
 
-settings_window = SettingsWindowManager(shc_image, config, activating_dd)
+
 # Main
 async def main():
-    logging.info("Starting tray initialization...")
     threading.Thread(target=start_shc_icon, daemon=True).start()
     await asyncio.sleep(0.1)
     logging.info("Checking chromium...")
     asyncio.create_task(check_browser())
     await chromium_ready.wait()
-    logging.info("Starting chromium initialization...")
     asyncio.create_task(init_browser())
     await device_counting_ready.wait()
     logging.info("Updating tray...")
