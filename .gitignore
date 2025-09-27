@@ -10,3 +10,4 @@ dist/
 /src/config.ini
 /src/debug.log
 /src/storage.json
+/dict.txt

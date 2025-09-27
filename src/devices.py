@@ -53,5 +53,3 @@ class Device:
         self.button = button
     def __repr__(self):
         return f"Device name = {self.name}, state = {self.state}, location = {self.location}, button = {self.button}"
-
-

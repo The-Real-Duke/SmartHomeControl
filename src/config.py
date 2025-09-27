@@ -9,7 +9,12 @@ class ConfigManager:
             self.data.read(self.path)
         else:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            self.data["CONFIG"] = {"default_device":"", "dd_hotkey":""}
+            self.data["CONFIG"] = {
+                "default_device":"",
+                "dd_hotkey":"",
+                "is_refreshing":"True",
+                "is_notify":"True"
+            }
             self.save()
 
     def get_info(self, section, option, fallback=None):

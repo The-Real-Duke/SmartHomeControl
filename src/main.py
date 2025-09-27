@@ -55,7 +55,7 @@ async def check_browser():
     logging.info("Searching chromium...")
     chromium_dirs = list((APPDATA_DIR / "ms-playwright").glob("chromium-*"))
     if not chromium_dirs:
-        shc_tray_icon.notify("Chromium doesn't found. Starting download chromium...", title="SmartHomeControl")
+        make_notify("Chromium doesn't found. Starting download chromium...", title="SmartHomeControl")
         logging.info("Chromium doesn't found. Starting download chromium... Please Wait.")
         os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(APPDATA_DIR / "ms-playwright")
         old_argv = sys.argv
@@ -64,7 +64,7 @@ async def check_browser():
             playwright_main()
         except SystemExit:
             pass
-        shc_tray_icon.notify("Chromium downloaded", title="SmartHomeControl")
+        make_notify("Chromium downloaded", title="SmartHomeControl")
         logging.info("Chromium downloaded")
         sys.argv = old_argv
         await check_browser()
@@ -93,7 +93,7 @@ async def first_authorize():
     browser = await inst.chromium.launch(headless=False,executable_path=executable_path)
     page = await browser.new_page()
     logging.info("First authorization. Opening login page...")
-    shc_tray_icon.notify("Cookies was not found. First authorization. Opening login page...", title="SmartHomeControl")
+    make_notify("Cookies was not found. First authorization. Opening login page...", title="SmartHomeControl")
     await page.goto("https://passport.yandex.ru/auth")
     try:
         await page.wait_for_url(lambda url: "passport.yandex.ru" not in url, timeout=180000)
@@ -135,9 +135,9 @@ async def activating_device(needed_device_name):
         await dm.toggle(needed_device_name)
         logging.info(f"{needed_device_name} {dm.devices[needed_device_name].state} now")
         if dm.devices[needed_device_name].state:
-            shc_tray_icon.notify(f"{needed_device_name} is turning on", title="SmartHomeControl")
+            make_notify(f"{needed_device_name} is turning on", title="SmartHomeControl")
         else:
-            shc_tray_icon.notify(f"{needed_device_name} is turning off", title="SmartHomeControl")
+            make_notify(f"{needed_device_name} is turning off", title="SmartHomeControl")
     except Exception as e:
         logging.info(f"Click was failed. Error: {e}")
 
@@ -149,7 +149,7 @@ async def refresh_page(icon=None, item=None):
         logging.info("Refreshing the page")
         await page.reload(wait_until="load")
         logging.info("Page is refreshed")
-        shc_tray_icon.notify(f"Page is refreshed", title="SmartHomeControl")
+        make_notify(f"Page is refreshed", title="SmartHomeControl")
         await dm.d_count()
         update_shc_icon()
     except Exception as e:
@@ -161,7 +161,7 @@ async def exit_program(icon=None, item=None):
     global shc_tray_icon
     global executable_path, inst, browser, context, page
     logging.info("Closing tray icon...")
-    shc_tray_icon.notify(f"Change the world. My final message. Good bye.", title="SmartHomeControl")
+    make_notify(f"Change the world. My final message. Good bye.", title="SmartHomeControl")
     shc_tray_icon.visible = False
     shc_tray_icon.stop()
     logging.info("Shutting the browser...")
@@ -170,15 +170,6 @@ async def exit_program(icon=None, item=None):
     await inst.stop()
     logging.info("Browser was closed")
     await loop.stop()
-
-
-#Click trigger
-def shc_tray_was_clicked(icon, item):
-    logging.info(f"Was clicked on tray: {item}")
-    if item.text == "Activate default device":
-        asyncio.run_coroutine_threadsafe(activating_device(default_device), loop)
-    else:
-        asyncio.run_coroutine_threadsafe(activating_device(item.text), loop)
 
 
 # Default device functions
@@ -190,14 +181,18 @@ def set_default_device(icon, item):
 def is_default_device(item):
     global default_device
     return item.text == default_device
-
-
 # Device checking
 def is_device_on(item):
     time.sleep(0.05)
     for device in dm.devices.values():
         if device.name == item.text:
             return device.state
+# Activating default device
+def activating_dd():
+    if default_device != "":
+        asyncio.run_coroutine_threadsafe(activating_device(default_device), loop)
+    else:
+        make_notify("There is no default device. Set one.")
 
 
 #Bulid for tray
@@ -232,29 +227,35 @@ def build_shc_tray_icon():
             "Activate default device", shc_tray_was_clicked
         )
     )
-
-
 #Updating tray
 def update_shc_icon():
     shc_tray_icon.menu=build_shc_tray_icon()
     shc_tray_icon.update_menu()
-    shc_tray_icon.notify("Tray rebuilt", title="SmartHomeControl")
-
-
+    make_notify("Tray rebuilt", title="SmartHomeControl")
+# Making notify if turned on
+def make_notify(text,title="SmartHomeControl"):
+    if config.get_info("CONFIG", "is_notify") == "True":
+        shc_tray_icon.notify(text, title=title)
 # Build and start tray
 def start_shc_icon():
     global shc_tray_icon, shc_tray_menu
     shc_tray_icon = pystray.Icon("SmartHomeControl", icon=Image.open(shc_image), title="SmartHomeControl", menu=build_shc_tray_icon())
     logging.info("Starting tray")
     shc_tray_icon.run()
-def activating_dd():
-    asyncio.run_coroutine_threadsafe(activating_device(default_device), loop)
+#Click trigger
+def shc_tray_was_clicked(icon, item):
+    logging.info(f"Was clicked on tray: {item}")
+    if item.text == "Activate default device":
+        asyncio.run_coroutine_threadsafe(activating_device(default_device), loop)
+    else:
+        asyncio.run_coroutine_threadsafe(activating_device(item.text), loop)
 
-# Background updater each 15 min + random seconds for antibot system
+# Background updater each 15 min + random seconds for antibot system if it turned on
 async def background_updater():
     while True:
         await asyncio.sleep(3600 + random.randint(-240, 240))
-        await refresh_page()
+        if config.get_info("CONFIG", "is_refreshing") == "True":
+            await refresh_page()
 
 settings_window = SettingsWindowManager(shc_image, config, activating_dd)
 # Main
