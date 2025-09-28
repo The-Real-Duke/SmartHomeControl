@@ -1,3 +1,5 @@
+Читать на других языках: [English](README.md)
+
 # <img src="assets/icon.png" alt="App Icon" width="24"> SHC (SmartHomeControl)
 Управляй Умным Домом Яндекс прямо из системного трея Windows.
 
