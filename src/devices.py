@@ -6,6 +6,7 @@ class DeviceManager:
         self.page = page
         self.devices = {}
         self._name_counter = {}
+        self.devices_cards = None
 
     async def d_count(self):
         page = self.page
@@ -13,12 +14,12 @@ class DeviceManager:
         # If waterfall-grid__column on the page - then medium size, if it isn't then small size. At least its working now.
         if await page.locator("xpath=//div[@class='waterfall-grid__column']").count():
             #  Finding visible cards which have text
-            devices_cards = await page.locator("//div[contains(@class, 'card-item-small')]").filter(
+            self.devices_cards = await page.locator("//div[contains(@class, 'card-item-small')]").filter(
                 has=page.locator(
                     "xpath=//div[@class='typography typography_align_center typography_color_primary typography_multi-line-clamp card-item-device-medium__text typography_header-16-m' and normalize-space(text()) != '']"
                 )).filter(visible=True).all()
         else:
-            devices_cards = await page.locator("//div[contains(@class, 'card-item-small')]").filter(
+            self.devices_cards = await page.locator("//div[contains(@class, 'card-item-small')]").filter(
                 has=page.locator(
                     "xpath=//div[@class='typography typography_align_inherit typography_color_primary typography_single-line-clamp card-item-device-small__text typography_text-13-m' and normalize-space(text()) != '']"
                 )).filter(visible=True).all()

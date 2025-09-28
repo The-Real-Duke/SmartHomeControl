@@ -1,17 +1,17 @@
+import asyncio
+import logging
 import os
 import random
 import sys
-import time
-import pystray
-import logging
-import asyncio
 import threading
-from PIL import Image
 from pathlib import Path
-from playwright.async_api import async_playwright
+
 from playwright.__main__ import main as playwright_main
+from playwright.async_api import async_playwright
+
 from src.config import ConfigManager
 from src.devices import DeviceManager
+from src.tray import TrayManager
 from src.ui_settings import SettingsWindowManager
 
 # Global Variables
@@ -33,8 +33,6 @@ browser = None
 context = None
 page = None
 dm = DeviceManager(page)
-shc_tray_icon = None
-shc_tray_menu = None
 pressed_key_list = []
 current_hotkey = ""
 is_hotkey_exist = False
@@ -50,10 +48,10 @@ logging.basicConfig(
 
 # Checking Chromium
 async def check_browser():
-    global executable_path, shc_tray_icon
+    global executable_path
     chromium_dirs = list((APPDATA_DIR / "ms-playwright").glob("chromium-*"))
     if not chromium_dirs:
-        make_notify("Chromium doesn't found. Starting download chromium...", title="SmartHomeControl")
+        tray.make_notify("Chromium doesn't found. Starting download chromium...", title="SmartHomeControl")
         logging.info("Chromium doesn't found. Starting download chromium... Please Wait.")
         os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(APPDATA_DIR / "ms-playwright")
         old_argv = sys.argv
@@ -62,7 +60,7 @@ async def check_browser():
             playwright_main()
         except SystemExit:
             pass
-        make_notify("Chromium downloaded", title="SmartHomeControl")
+        tray.make_notify("Chromium downloaded", title="SmartHomeControl")
         logging.info("Chromium downloaded")
         sys.argv = old_argv
         await check_browser()
@@ -85,13 +83,13 @@ async def init_browser():
 
 # First Authorize
 async def first_authorize():
-    global executable_path, inst, browser, page, shc_tray_icon
+    global inst, browser, page
     inst = await async_playwright().start()
     logging.info("Trying to launch Chromium...")
     browser = await inst.chromium.launch(headless=False, executable_path=executable_path)
     page = await browser.new_page()
     logging.info("First authorization. Opening login page...")
-    make_notify("Cookies was not found. First authorization. Opening login page...", title="SmartHomeControl")
+    tray.make_notify("Cookies was not found. First authorization. Opening login page...", title="SmartHomeControl")
     await page.goto("https://passport.yandex.ru/auth")
     try:
         await page.wait_for_url(lambda url: "passport.yandex.ru" not in url, timeout=180000)
@@ -108,7 +106,7 @@ async def first_authorize():
 
 # Authorize with cookies
 async def cookies_authorize():
-    global executable_path, inst, browser, context, page, dm
+    global inst, browser, context, page, dm
     logging.info("Cookies already existing")
     inst = await async_playwright().start()
     logging.info("Starting Chromium...")
@@ -119,149 +117,49 @@ async def cookies_authorize():
     await page.goto("https://yandex.ru/iot", wait_until="domcontentloaded")
     dm = DeviceManager(page)
     await dm.d_count()
+    tray.dm = dm
     device_counting_ready.set()
 
 
 # Activating device
 async def activating_device(needed_device_name):
-    global dm
     try:
         logging.info(f"{needed_device_name} was {dm.devices[needed_device_name].state}")
         await dm.toggle(needed_device_name)
         logging.info(f"{needed_device_name} {dm.devices[needed_device_name].state} now")
         if dm.devices[needed_device_name].state:
-            make_notify(f"{needed_device_name} is turning on", title="SmartHomeControl")
+            tray.make_notify(f"{needed_device_name} is turning on", title="SmartHomeControl")
         else:
-            make_notify(f"{needed_device_name} is turning off", title="SmartHomeControl")
+            tray.make_notify(f"{needed_device_name} is turning off", title="SmartHomeControl")
     except Exception as e:
         logging.info(f"Click was failed. Error: {e}")
 
 
 # Refreshing page
-async def refresh_page(icon=None, item=None):
-    global page, shc_tray_icon, dm
+async def refresh_page():
     try:
         logging.info("Refreshing the page")
         await page.reload(wait_until="load")
         logging.info("Page is refreshed")
-        make_notify(f"Page is refreshed", title="SmartHomeControl")
+        tray.make_notify(f"Page is refreshed", title="SmartHomeControl")
         await dm.d_count()
-        update_shc_icon()
+        tray.update_tray_menu()
     except Exception as e:
         logging.info(f"Can't refresh the page:{e}")
 
 
 # Exiting program
-async def exit_program(icon=None, item=None):
-    global shc_tray_icon
-    global executable_path, inst, browser, context, page
+async def exit_program():
     logging.info("Closing tray icon...")
-    make_notify(f"Change the world. My final message. Good bye.", title="SmartHomeControl")
-    shc_tray_icon.visible = False
-    shc_tray_icon.stop()
+    tray.make_notify(f"Change the world. My final message. Good bye.", title="SmartHomeControl")
+    tray.shc_tray_icon.visible = False
+    tray.shc_tray_icon.stop()
     logging.info("Shutting the browser...")
     await context.close()
     await browser.close()
     await inst.stop()
     logging.info("Browser was closed")
     await loop.stop()
-
-
-# Default device functions
-def set_default_device(icon, item):
-    global default_device
-    default_device = item.text
-    config.set("CONFIG", "default_device", str(default_device))
-    config.save()
-
-
-def is_default_device(item):
-    global default_device
-    return item.text == default_device
-
-
-# Device checking
-def is_device_on(item):
-    time.sleep(0.05)
-    for device in dm.devices.values():
-        if device.name == item.text:
-            return device.state
-
-
-# Activating default device
-def activating_dd():
-    if default_device != "":
-        asyncio.run_coroutine_threadsafe(activating_device(default_device), loop)
-    else:
-        make_notify("There is no default device. Set one.")
-
-
-settings_window = SettingsWindowManager(shc_image, config, activating_dd)
-
-
-# Build for tray
-def build_shc_tray_icon():
-    return pystray.Menu(
-        pystray.MenuItem(
-            "Exit", lambda icon, item: asyncio.run_coroutine_threadsafe(exit_program(), loop)
-        ),
-        pystray.Menu.SEPARATOR,
-        pystray.MenuItem(
-            "Activatable devices", pystray.Menu(
-                lambda: (
-                    pystray.MenuItem(d.name, shc_tray_was_clicked, checked=lambda item: is_device_on(item))
-                    for d in dm.devices.values())
-            )
-        ),
-        pystray.MenuItem(
-            "Select default device", pystray.Menu(
-                lambda: (
-                    pystray.MenuItem(d.name, set_default_device, checked=lambda item: is_default_device(item))
-                    for d in dm.devices.values())
-            )
-        ),
-        pystray.MenuItem(
-            "Settings", lambda icon, item: settings_window.open()
-        ),
-        pystray.MenuItem(
-            "Refresh Page", lambda icon, item: asyncio.run_coroutine_threadsafe(refresh_page(), loop)
-        ),
-        pystray.Menu.SEPARATOR,
-        pystray.MenuItem(
-            "Activate default device", shc_tray_was_clicked
-        )
-    )
-
-
-# Updating tray
-def update_shc_icon():
-    shc_tray_icon.menu = build_shc_tray_icon()
-    shc_tray_icon.update_menu()
-    make_notify("Tray rebuilt", title="SmartHomeControl")
-
-
-# Making notify if turned on
-def make_notify(text, title="SmartHomeControl"):
-    if config.get_info("CONFIG", "is_notify") == "True":
-        shc_tray_icon.notify(text, title=title)
-
-
-# Build and start tray
-def start_shc_icon():
-    global shc_tray_icon, shc_tray_menu
-    shc_tray_icon = pystray.Icon("SmartHomeControl", icon=Image.open(shc_image), title="SmartHomeControl",
-                                 menu=build_shc_tray_icon())
-    logging.info("Starting tray")
-    shc_tray_icon.run()
-
-
-# Click trigger
-def shc_tray_was_clicked(icon, item):
-    logging.info(f"Was clicked on tray: {item}")
-    if item.text == "Activate default device":
-        asyncio.run_coroutine_threadsafe(activating_device(default_device), loop)
-    else:
-        asyncio.run_coroutine_threadsafe(activating_device(item.text), loop)
 
 
 # Background updater each 15 min + random seconds for antibot system if it turned on
@@ -272,9 +170,25 @@ async def background_updater():
             await refresh_page()
 
 
+settings_window = SettingsWindowManager(
+    shc_image,
+    config,
+    activating_device
+)
+tray = TrayManager(
+    shc_image,
+    config,
+    lambda device: asyncio.run_coroutine_threadsafe(activating_device(device), loop),
+    lambda: asyncio.run_coroutine_threadsafe(exit_program(), loop),
+    settings_window,
+    lambda: asyncio.run_coroutine_threadsafe(refresh_page(), loop),
+    dm
+)
+
+
 # Main
 async def main():
-    threading.Thread(target=start_shc_icon, daemon=True).start()
+    threading.Thread(target=tray.start_tray, daemon=True).start()
     await asyncio.sleep(0.1)
     logging.info("Checking chromium...")
     asyncio.create_task(check_browser())
@@ -282,7 +196,7 @@ async def main():
     asyncio.create_task(init_browser())
     await device_counting_ready.wait()
     logging.info("Updating tray...")
-    update_shc_icon()
+    tray.update_tray_menu()
     threading.Thread(target=SettingsWindowManager.clear_keys, daemon=True).start()
     asyncio.create_task(background_updater())
 

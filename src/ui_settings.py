@@ -2,6 +2,7 @@ import time
 import tkinter
 import tkinter.messagebox
 import tkinter.ttk
+
 import keyboard
 
 
@@ -170,7 +171,7 @@ class SettingsWindowManager:
     def _make_hotkey(self):
         keyboard.add_hotkey(
             self.current_hotkey,
-            lambda: self.on_hotkey_callback()
+            lambda: self.on_hotkey_callback(self.config.get_info("CONFIG", "default_device"))
         )
         if self.window:
             self.config.set("CONFIG", "dd_hotkey", str(self.current_hotkey))
