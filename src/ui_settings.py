@@ -235,7 +235,7 @@ class SettingsWindowManager:
     def _about():
         tkinter.messagebox.showinfo(
             title="SmartHomeControl",
-            message="SmartHomeControl v1.1.0\nAuthor: The-Real-Duke\nLicense: CC BY-NC-SA 4.0\nSource: github.com/The-Real-Duke/SmartHomeControl"
+            message="SmartHomeControl v1.1.1\nAuthor: The-Real-Duke\nLicense: CC BY-NC-SA 4.0\nSource: github.com/The-Real-Duke/SmartHomeControl"
         )
 
     @staticmethod

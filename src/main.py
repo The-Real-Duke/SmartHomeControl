@@ -173,7 +173,7 @@ async def background_updater():
 settings_window = SettingsWindowManager(
     shc_image,
     config,
-    activating_device
+    lambda device: asyncio.run_coroutine_threadsafe(activating_device(device), loop)
 )
 tray = TrayManager(
     shc_image,
