@@ -1,3 +1,5 @@
+🌍 Read this in other languages: [Русский](README_RU.md)
+
 # <img src="assets/icon.png" alt="App Icon" width="24" style="vertical-align: middle;"> SHC (SmartHomeControl)
 &nbsp; Control your Yandex Smart Home devices directly from the Windows system tray.
 
